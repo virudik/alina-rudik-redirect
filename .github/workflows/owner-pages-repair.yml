@@ -1,0 +1,100 @@
+name: Owner Pages certificate repair (once)
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/owner-pages-repair.yml']
+permissions:
+  contents: write
+  pages: write
+concurrency:
+  group: owner-pages-repair
+  cancel-in-progress: false
+jobs:
+  repair:
+    if: github.actor == 'virudik'
+    runs-on: ubuntu-latest
+    timeout-minutes: 7
+    env:
+      HOLDER: chatgpt:ordinary:79dd16b2-9780-466c-a616-33cb3eb1387d
+      ACQUIRED: '2026-11-08T07:23:48Z'
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Verify settings and perform one bounded certificate repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,json,base64,urllib.request,urllib.error,ssl,socket,time,subprocess,hashlib
+          from pathlib import Path
+          from datetime import datetime,timezone
+          repo=os.environ['GITHUB_REPOSITORY']; domain=Path('CNAME').read_text().strip()
+          assert repo=='virudik/alina-rudik-redirect' and domain=='xn--80aaxll.xn--d1aigvp.xn--p1ai'
+          def now():return datetime.now(timezone.utc).isoformat(timespec='seconds')
+          def lease():
+              u='https://api.github.com/repos/virudik/ai-film-prompts/contents/ops/canon-lock.json?ref=main'
+              req=urllib.request.Request(u,headers={'Accept':'application/vnd.github+json','User-Agent':'owner-pages-repair'})
+              j=json.load(urllib.request.urlopen(req,timeout=25)); l=json.loads(base64.b64decode(j['content']))
+              assert l['state']=='held' and l['holder']==os.environ['HOLDER'] and l['acquired_at']==os.environ['ACQUIRED']
+              assert datetime.fromisoformat(l['expires_at'].replace('Z','+00:00'))>datetime.now(timezone.utc)
+          def api(method,payload=None):
+              headers={'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2026-03-10','User-Agent':'owner-pages-repair','Authorization':'Bearer '+os.environ['GH_TOKEN']}
+              req=urllib.request.Request('https://api.github.com/repos/'+repo+'/pages',data=None if payload is None else json.dumps(payload).encode(),headers=headers,method=method)
+              try:
+                  with urllib.request.urlopen(req,timeout=30) as r:
+                      b=r.read();return {'http_status':r.status,'data':json.loads(b) if b else {}}
+              except urllib.error.HTTPError as e:
+                  body=e.read().decode();return {'http_status':e.code,'error':body[:1800]}
+          def tls():
+              result={'checked_at':now(),'hostname':domain,'verified':False}
+              try:
+                  with socket.create_connection((domain,443),timeout=15) as s:
+                      with ssl.create_default_context().wrap_socket(s,server_hostname=domain) as t:
+                          cert=t.getpeercert();result.update(verified=True,subjectAltName=cert.get('subjectAltName'),notAfter=cert.get('notAfter'),sha256=hashlib.sha256(t.getpeercert(binary_form=True)).hexdigest())
+              except Exception as e:result.update(error_type=type(e).__name__,error=str(e))
+              return result
+          lease()
+          marker=Path('reports/pages-certificate-repair-2026-11-08.json')
+          if marker.exists():raise SystemExit('Already attempted; do not repeat certificate provisioning')
+          report={'schema_version':1,'repo':repo,'domain':domain,'started_at':now(),'holder':os.environ['HOLDER'],'before':api('GET'),'tls_before':tls(),'actions':[],'dns_changed':False,'domain_removed':False,'no_payments':True}
+          state=report['before']; cfg=state.get('data',{})
+          if state['http_status']==200:
+              assert cfg.get('cname') in [None,'',domain], 'Different custom domain: stop, do not overwrite'
+              if not report['tls_before']['verified']:
+                  lease(); result=api('PUT',{'cname':domain});report['actions'].append({'action':'reassert_existing_CNAME_or_register_missing_CNAME','result':result})
+                  if result['http_status'] in [200,204]:
+                      for i in range(4):
+                          time.sleep(20); observation=tls();report.setdefault('tls_polls',[]).append(observation)
+                          if observation['verified']:break
+              final=tls();report['tls_after']=final
+              if final['verified'] and not cfg.get('https_enforced'):
+                  lease(); report['actions'].append({'action':'enforce_verified_HTTPS','result':api('PUT',{'https_enforced':True})})
+              report['after']=api('GET')
+          report['finished_at']=now()
+          report['resolved']=bool(report.get('tls_after',report['tls_before']).get('verified'))
+          report['blocked_by_api_permissions']=any(a['result']['http_status'] in [401,403] for a in report['actions'])
+          report['note']='Same existing domain only; no removal, DNS edits, source-branch change, token publication, or bypass of denied API permissions.'
+          Path('/tmp/pages-repair-result.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          lease()
+          print(json.dumps({'repo':repo,'resolved':report['resolved'],'api_status':state['http_status'],'write_statuses':[a['result']['http_status'] for a in report['actions']],'blocked_by_api_permissions':report['blocked_by_api_permissions']}))
+          PY
+      - name: Publish observed result without changing source or domain files
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3; do
+            git fetch -q origin main
+            git reset -q --hard origin/main
+            mkdir -p reports
+            cp /tmp/pages-repair-result.json reports/pages-certificate-repair-2026-11-08.json
+            git add reports/pages-certificate-repair-2026-11-08.json
+            git diff --cached --quiet && exit 0
+            git commit -m 'Pages certificate: record exact API and TLS result, no blind retries'
+            if git push origin HEAD:main; then exit 0; fi
+          done
+          exit 1
