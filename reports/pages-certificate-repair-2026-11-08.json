@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "repo": "virudik/alina-rudik-redirect",
+  "domain": "xn--80aaxll.xn--d1aigvp.xn--p1ai",
+  "started_at": "2026-11-08T07:29:53+00:00",
+  "holder": "chatgpt:ordinary:79dd16b2-9780-466c-a616-33cb3eb1387d",
+  "before": {
+    "http_status": 200,
+    "data": {
+      "url": "https://api.github.com/repos/virudik/alina-rudik-redirect/pages",
+      "status": "building",
+      "cname": "xn--80aaxll.xn--d1aigvp.xn--p1ai",
+      "custom_404": false,
+      "html_url": "http://xn--80aaxll.xn--d1aigvp.xn--p1ai/",
+      "build_type": "legacy",
+      "source": {
+        "branch": "main",
+        "path": "/"
+      },
+      "public": true,
+      "protected_domain_state": null,
+      "pending_domain_unverified_at": null,
+      "https_enforced": false
+    }
+  },
+  "tls_before": {
+    "checked_at": "2026-11-08T07:29:54+00:00",
+    "hostname": "xn--80aaxll.xn--d1aigvp.xn--p1ai",
+    "verified": false,
+    "error_type": "SSLCertVerificationError",
+    "error": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'xn--80aaxll.xn--d1aigvp.xn--p1ai'. (_ssl.c:1081)"
+  },
+  "actions": [
+    {
+      "action": "reassert_existing_CNAME_or_register_missing_CNAME",
+      "result": {
+        "http_status": 403,
+        "error": "{\"message\":\"Resource not accessible by integration\",\"documentation_url\":\"https://docs.github.com/rest/pages/pages#update-information-about-a-apiname-pages-site\",\"status\":\"403\"}"
+      }
+    }
+  ],
+  "dns_changed": false,
+  "domain_removed": false,
+  "no_payments": true,
+  "tls_after": {
+    "checked_at": "2026-11-08T07:29:55+00:00",
+    "hostname": "xn--80aaxll.xn--d1aigvp.xn--p1ai",
+    "verified": false,
+    "error_type": "SSLCertVerificationError",
+    "error": "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'xn--80aaxll.xn--d1aigvp.xn--p1ai'. (_ssl.c:1081)"
+  },
+  "after": {
+    "http_status": 200,
+    "data": {
+      "url": "https://api.github.com/repos/virudik/alina-rudik-redirect/pages",
+      "status": "building",
+      "cname": "xn--80aaxll.xn--d1aigvp.xn--p1ai",
+      "custom_404": false,
+      "html_url": "http://xn--80aaxll.xn--d1aigvp.xn--p1ai/",
+      "build_type": "legacy",
+      "source": {
+        "branch": "main",
+        "path": "/"
+      },
+      "public": true,
+      "protected_domain_state": null,
+      "pending_domain_unverified_at": null,
+      "https_enforced": false
+    }
+  },
+  "finished_at": "2026-11-08T07:29:55+00:00",
+  "resolved": false,
+  "blocked_by_api_permissions": true,
+  "note": "Same existing domain only; no removal, DNS edits, source-branch change, token publication, or bypass of denied API permissions."
+}
